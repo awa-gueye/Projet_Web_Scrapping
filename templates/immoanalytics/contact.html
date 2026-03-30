@@ -1,0 +1,248 @@
+{% extends 'immoanalytics/base.html' %}
+{% load static %}
+{% block title %}Contact — ImmoPredict SN{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── Hero avec image immeuble ─────────────────────────── */
+.contact-wrap {
+  min-height: calc(100vh - var(--navbar-h));
+  position: relative; overflow: hidden;
+}
+.contact-bg {
+  position: absolute; inset: 0;
+  background: linear-gradient(160deg, #0F2444 0%, #1A3560 40%, #0E6B4A 100%);
+}
+.contact-bg img {
+  width: 100%; height: 100%; object-fit: cover;
+  opacity: .18; display: block;
+}
+.contact-bg-overlay {
+  position: absolute; inset: 0;
+  background: linear-gradient(160deg, rgba(15,36,68,.85) 0%, rgba(14,107,74,.7) 100%);
+}
+/* Grille décorative */
+.contact-bg-grid {
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(201,168,76,.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(201,168,76,.06) 1px, transparent 1px);
+  background-size: 60px 60px;
+}
+
+/* ── Layout centré ─────────────────────────────────────── */
+.contact-inner {
+  position: relative; z-index: 2;
+  min-height: calc(100vh - var(--navbar-h));
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 3rem 1rem;
+}
+.contact-title-wrap {
+  text-align: center; margin-bottom: 2.5rem; color: #fff;
+  animation: fade-up .5s ease both;
+}
+.contact-title {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(2.2rem, 5vw, 3.8rem);
+  font-weight: 700; color: #fff; line-height: 1.1;
+  margin-bottom: .6rem;
+}
+.contact-title span { color: var(--gold); font-style: italic; }
+.contact-sub { color: rgba(255,255,255,.55); font-size: .95rem; }
+
+/* ── Card formulaire ───────────────────────────────────── */
+.contact-card {
+  background: rgba(255,255,255,.97);
+  border-radius: 20px; padding: 2.5rem;
+  width: 100%; max-width: 750px;
+  box-shadow: 0 32px 80px rgba(0,0,0,.3);
+  animation: fade-up .5s ease .15s both;
+}
+
+/* Champs */
+.contact-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.contact-field { display: flex; flex-direction: column; gap: .3rem; }
+.contact-field label {
+  font-size: .72rem; font-weight: 700; color: var(--navy);
+  text-transform: uppercase; letter-spacing: .07em;
+}
+.contact-field label span { color: var(--red); }
+.contact-input {
+  padding: .7rem 1rem; border: 1.5px solid var(--border);
+  border-radius: 9px; font-size: .88rem;
+  font-family: var(--font); color: var(--dark);
+  background: #fff; outline: none;
+  transition: all .2s;
+}
+.contact-input:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 4px rgba(201,168,76,.1);
+}
+.contact-tel-wrap { display: flex; gap: .5rem; }
+.contact-tel-code {
+  width: 80px; flex-shrink: 0;
+  padding: .7rem .8rem; border: 1.5px solid var(--border);
+  border-radius: 9px; font-size: .88rem;
+  background: var(--bg); color: var(--muted);
+  font-family: var(--mono); outline: none;
+}
+.contact-select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236B7280' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right .8rem center;
+  padding-right: 2rem;
+}
+.contact-textarea {
+  resize: vertical; min-height: 110px;
+}
+.contact-submit {
+  width: 100%; padding: .9rem;
+  background: linear-gradient(135deg, #C9A84C, #E2C47A);
+  color: var(--navy); border: none; border-radius: 10px;
+  font-size: .95rem; font-weight: 700;
+  cursor: pointer; transition: all .2s;
+  display: flex; align-items: center; justify-content: center; gap: .5rem;
+  font-family: var(--font); margin-top: .5rem;
+}
+.contact-submit:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(201,168,76,.4);
+}
+
+/* Infos sous le formulaire */
+.contact-infos {
+  display: flex; gap: 2rem; justify-content: center;
+  margin-top: 1.5rem; flex-wrap: wrap;
+}
+.contact-info-item {
+  display: flex; align-items: center; gap: .5rem;
+  color: rgba(255,255,255,.65); font-size: .82rem;
+}
+.contact-info-item i { color: var(--gold); }
+
+/* Success */
+.contact-success {
+  text-align: center; padding: 2rem;
+}
+.contact-success i { font-size: 3rem; color: var(--green); margin-bottom: 1rem; display: block; }
+.contact-success h4 { font-family: var(--serif); font-size: 1.5rem; color: var(--navy); margin-bottom: .5rem; }
+.contact-success p { color: var(--muted); font-size: .88rem; }
+
+@media(max-width:640px) {
+  .contact-form-grid { grid-template-columns: 1fr; }
+  .contact-card { padding: 1.5rem; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="contact-wrap">
+  <!-- Fond -->
+  <div class="contact-bg">
+    <img src="{% static 'immoanalytics/img/contact-hero.jpg' %}"
+         alt="ImmoPredict Contact"
+         onerror="this.style.display='none'">
+    <div class="contact-bg-overlay"></div>
+    <div class="contact-bg-grid"></div>
+  </div>
+
+  <div class="contact-inner">
+    <!-- Titre -->
+    <div class="contact-title-wrap">
+      <h1 class="contact-title">Contactez-<span>Nous</span> !</h1>
+      <p class="contact-sub">Notre équipe est à votre disposition pour toutes vos questions</p>
+    </div>
+
+    <!-- Card formulaire -->
+    <div class="contact-card">
+      {% if sent %}
+      <div class="contact-success">
+        <i class="fas fa-check-circle"></i>
+        <h4>Message envoyé !</h4>
+        <p>Nous avons bien reçu votre message et vous répondrons dans les meilleurs délais.</p>
+        <a href="/contact/" class="contact-submit" style="margin-top:1.5rem;text-decoration:none;display:inline-flex;width:auto;padding:.7rem 2rem">
+          <i class="fas fa-redo"></i> Nouveau message
+        </a>
+      </div>
+      {% else %}
+      {% if error %}
+      <div class="alert alert-error" style="margin-bottom:1rem">
+        <i class="fas fa-exclamation-circle"></i> {{ error }}
+      </div>
+      {% endif %}
+
+      <form method="POST" action="/contact/">
+        {% csrf_token %}
+
+        <!-- Nom + Prénom -->
+        <div class="contact-form-grid" style="margin-bottom:1rem">
+          <div class="contact-field">
+            <label>Nom <span>*</span></label>
+            <input type="text" name="last_name" class="contact-input" placeholder="Prénom" required>
+          </div>
+          <div class="contact-field">
+            <label>&nbsp;</label>
+            <input type="text" name="first_name" class="contact-input" placeholder="Nom" required>
+          </div>
+        </div>
+
+        <!-- Email + Téléphone -->
+        <div class="contact-form-grid" style="margin-bottom:1rem">
+          <div class="contact-field">
+            <label>Email</label>
+            <input type="email" name="email" class="contact-input" placeholder="example@example.com">
+          </div>
+          <div class="contact-field">
+            <label>Téléphone <span>*</span></label>
+            <div class="contact-tel-wrap">
+              <input type="text" class="contact-tel-code contact-input" value="+221" readonly>
+              <input type="tel" name="phone" class="contact-input" style="flex:1" placeholder="Numéro">
+            </div>
+          </div>
+        </div>
+
+        <!-- Objet -->
+        <div class="contact-field" style="margin-bottom:1rem">
+          <label>Objet</label>
+          <select name="subject" class="contact-input contact-select">
+            <option value="">-- Sélectionner --</option>
+            <option>Question sur la plateforme</option>
+            <option>Partenariat commercial</option>
+            <option>Signaler un bug</option>
+            <option>Demande d'accès analytique</option>
+            <option>Presse / Médias</option>
+            <option>Autre</option>
+          </select>
+        </div>
+
+        <!-- Message -->
+        <div class="contact-field" style="margin-bottom:1.5rem">
+          <label>Message <span>*</span></label>
+          <textarea name="message" class="contact-input contact-textarea"
+                    placeholder="Votre message..." required></textarea>
+        </div>
+
+        <button type="submit" class="contact-submit">
+          <i class="fas fa-paper-plane"></i> Envoyer
+        </button>
+      </form>
+      {% endif %}
+    </div>
+
+    <!-- Infos en bas -->
+    <div class="contact-infos">
+      <div class="contact-info-item">
+        <i class="fas fa-envelope"></i> contact@immopredict.sn
+      </div>
+      <div class="contact-info-item">
+        <i class="fas fa-phone"></i> +221 77 123 45 67
+      </div>
+      <div class="contact-info-item">
+        <i class="fas fa-map-pin"></i> Dakar, Sénégal
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

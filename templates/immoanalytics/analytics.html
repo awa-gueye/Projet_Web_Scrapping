@@ -1,0 +1,178 @@
+{% extends 'immoanalytics/base.html' %}
+{% load static %}
+{% block title %}Analytics{% endblock %}
+
+{% block extra_css %}
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<style>.page-content { padding: 1.2rem 1.5rem; }</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-content fade-in">
+
+  <!-- Filtres -->
+  <form method="GET" action="/analytics/" class="filter-bar">
+    <div class="filter-group">
+      <label>Transaction</label>
+      <select name="txn" class="form-select" onchange="this.form.submit()">
+        <option value="all"      {% if txn_filter == 'all' %}selected{% endif %}>Toutes</option>
+        <option value="Vente"    {% if txn_filter == 'Vente' %}selected{% endif %}>Vente</option>
+        <option value="Location" {% if txn_filter == 'Location' %}selected{% endif %}>Location</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Source</label>
+      <select name="src" class="form-select" onchange="this.form.submit()">
+        <option value="all" {% if src_filter == 'all' %}selected{% endif %}>Toutes</option>
+        {% for s in sources %}
+        <option value="{{ s }}" {% if src_filter == s %}selected{% endif %}>{{ s|title }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Type de bien</label>
+      <select name="type" class="form-select" onchange="this.form.submit()">
+        <option value="all" {% if type_filter == 'all' %}selected{% endif %}>Tous</option>
+        {% for t in types %}
+        <option value="{{ t }}" {% if type_filter == t %}selected{% endif %}>{{ t }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Ville</label>
+      <select name="city" class="form-select" onchange="this.form.submit()">
+        <option value="" {% if not city_filter %}selected{% endif %}>Toutes</option>
+        {% for c in cities %}
+        <option value="{{ c }}" {% if city_filter == c %}selected{% endif %}>{{ c }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </form>
+
+  <!-- Ligne 1 : Box plot + Scatter -->
+  <div class="charts-row">
+    <div class="chart-wrap">
+      <div class="chart-card">
+        <div class="chart-header">
+          <i class="fas fa-box"></i> Distribution prix par type (box plot)
+        </div>
+        <div id="fig-box" style="height:300px"></div>
+      </div>
+    </div>
+    <div class="chart-wrap">
+      <div class="chart-card">
+        <div class="chart-header">
+          <i class="fas fa-circle-dot"></i> Prix vs Superficie
+        </div>
+        <div id="fig-sc" style="height:300px"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ligne 2 : Bar villes + Stats -->
+  <div class="charts-row">
+    <div class="chart-wrap wide">
+      <div class="chart-card">
+        <div class="chart-header">
+          <i class="fas fa-map-pin"></i> Prix médian par ville (min. 3 annonces)
+        </div>
+        <div id="fig-bar" style="height:340px"></div>
+      </div>
+    </div>
+    <div class="chart-wrap">
+      <div class="chart-card" style="height:100%">
+        <div class="chart-header">
+          <i class="fas fa-calculator"></i> Statistiques descriptives
+        </div>
+        <div style="padding:1rem;overflow-y:auto;max-height:300px">
+          {% for k, v in stats %}
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:.4rem 0;border-bottom:1px solid #F3F4F6">
+            <span style="font-size:.76rem;color:var(--muted)">{{ k }}</span>
+            <span style="font-size:.8rem;font-weight:700;color:var(--dark)">{{ v }}</span>
+          </div>
+          {% empty %}
+          <p class="text-muted text-sm">Aucune donnée.</p>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ligne 3 : Comparaison sources + Prix m² -->
+  <div class="charts-row">
+    <div class="chart-wrap">
+      <div class="chart-card">
+        <div class="chart-header">
+          <i class="fas fa-layer-group"></i> Comparaison sources — médiane vs moyenne
+        </div>
+        <div id="fig-src" style="height:280px"></div>
+      </div>
+    </div>
+    <div class="chart-wrap">
+      <div class="chart-card">
+        <div class="chart-header">
+          <i class="fas fa-expand"></i> Distribution du prix au m²
+        </div>
+        <div id="fig-m2" style="height:280px"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ligne 4 : Corrélation chambres -->
+  <div class="charts-row">
+    <div class="chart-wrap" style="flex:1;max-width:600px">
+      <div class="chart-card">
+        <div class="chart-header">
+          <i class="fas fa-bed"></i> Prix médian selon le nombre de chambres
+        </div>
+        <div id="fig-beds" style="height:260px"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script id="a-fig-box"  type="application/json">{{ fig_box|safe }}</script>
+<script id="a-fig-sc"   type="application/json">{{ fig_sc|safe }}</script>
+<script id="a-fig-bar"  type="application/json">{{ fig_bar|safe }}</script>
+<script id="a-fig-src"  type="application/json">{{ fig_src|safe }}</script>
+<script id="a-fig-m2"   type="application/json">{{ fig_m2|safe }}</script>
+<script id="a-fig-beds" type="application/json">{{ fig_beds|safe }}</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var CFG = {responsive: true, displayModeBar: false, locale: 'fr'};
+
+  function renderPlot(divId, dataId) {
+    var el = document.getElementById(divId);
+    var src = document.getElementById(dataId);
+    if (!el || !src) return;
+    try {
+      var fig = JSON.parse(src.textContent);
+      var layout = fig.layout || {};
+      layout.paper_bgcolor = 'rgba(0,0,0,0)';
+      layout.plot_bgcolor  = 'rgba(0,0,0,0)';
+      layout.font = {family: 'Inter, sans-serif', size: 11, color: '#374151'};
+      if (!layout.margin) layout.margin = {l:50, r:30, t:20, b:50};
+      if (layout.legend === undefined) layout.legend = {orientation: 'h', y: -0.2, bgcolor: 'rgba(0,0,0,0)'};
+      if (fig.data && fig.data.length > 0) {
+        Plotly.newPlot(divId, fig.data, layout, CFG);
+      } else {
+        el.innerHTML = '<div style="height:100%;display:flex;align-items:center;justify-content:center;color:#9CA3AF;font-size:.82rem"><i class="fas fa-chart-bar" style="margin-right:.4rem;color:#DDE1EE"></i>Données insuffisantes</div>';
+      }
+    } catch(e) {
+      console.error('Plotly error on ' + divId + ':', e);
+    }
+  }
+
+  renderPlot('fig-box',  'a-fig-box');
+  renderPlot('fig-sc',   'a-fig-sc');
+  renderPlot('fig-bar',  'a-fig-bar');
+  renderPlot('fig-src',  'a-fig-src');
+  renderPlot('fig-m2',   'a-fig-m2');
+  renderPlot('fig-beds', 'a-fig-beds');
+});
+</script>
+{% endblock %}
