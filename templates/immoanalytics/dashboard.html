@@ -1,199 +1,410 @@
 {% extends 'immoanalytics/base.html' %}
 {% load static %}
-{% block title %}Dashboard{% endblock %}
+{% block title %}Dashboard — ImmoPredict SN{% endblock %}
 
 {% block extra_css %}
+</style>
 <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
 <style>
-.page-content { padding: 1.2rem 1.5rem; }
+/* === DASHBOARD === */
+.db{padding:1.5rem 2rem;max-width:1360px;margin:0 auto}
+/* Filters */
+.db-fbar{background:#fff;border-bottom:1px solid #D6E3F0;padding:.75rem 2rem;display:flex;gap:.7rem;align-items:center;flex-wrap:wrap;box-shadow:0 1px 4px rgba(12,45,77,.04)}
+.db-sel{padding:.38rem .75rem;border:1.5px solid #D6E3F0;border-radius:8px;font-size:.8rem;font-family:Arial,Helvetica,sans-serif;color:#0C2D4D;outline:none;background:#fff;cursor:pointer;min-width:125px}
+.db-sel:focus{border-color:#1A8ED8;box-shadow:0 0 0 3px rgba(26,142,216,.1)}
+.db-badge{font-size:.78rem;color:#7A8599;margin-left:auto;display:flex;align-items:center;gap:.35rem}
+.db-badge strong{color:#0C2D4D}.db-badge i{color:#1A8ED8}
+/* Tabs */
+.db-tabs{display:flex;gap:.3rem;margin-bottom:1.5rem;border-bottom:2px solid #D6E3F0;padding-bottom:0}
+.db-tab{padding:.6rem 1.2rem;font-size:.82rem;font-weight:600;color:#7A8599;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .2s;display:flex;align-items:center;gap:.35rem;border-radius:6px 6px 0 0}
+.db-tab:hover{color:#1A8ED8;background:rgba(26,142,216,.04)}
+.db-tab.active{color:#1A8ED8;border-bottom-color:#1A8ED8;background:rgba(26,142,216,.04)}
+.db-tab i{font-size:.72rem}
+.tab-content{display:none}.tab-content.active{display:block}
+/* KPI */
+.kpi-row{display:grid;grid-template-columns:repeat(6,1fr);gap:.9rem;margin-bottom:1.5rem}
+.kpi{background:#fff;border-radius:10px;border:1px solid #D6E3F0;padding:1rem;transition:all .22s;border-left:4px solid #1A8ED8}
+.kpi:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(12,45,77,.07)}
+.kpi-ic{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:.82rem;margin-bottom:.5rem}
+.kpi-v{font-family:'Times New Roman',Times,serif;font-size:1.4rem;font-weight:700;color:#0C2D4D;line-height:1}
+.kpi-l{font-size:.74rem;font-weight:600;color:#374151;margin-top:.2rem}
+.kpi-s{font-size:.66rem;color:#7A8599;margin-top:.12rem}
+/* Chart boxes */
+.row-2{display:grid;grid-template-columns:5fr 3fr;gap:1.1rem;margin-bottom:1.1rem}
+.row-eq{display:grid;grid-template-columns:1fr 1fr;gap:1.1rem;margin-bottom:1.1rem}
+.row-3{display:grid;grid-template-columns:1fr 1fr 260px;gap:1.1rem;margin-bottom:1.1rem}
+.row-1{margin-bottom:1.1rem}
+.cbox{background:#fff;border-radius:10px;border:1px solid #D6E3F0;padding:1rem 1.1rem;box-shadow:0 1px 4px rgba(12,45,77,.03)}
+.cbox-h{font-size:.8rem;font-weight:700;color:#0C2D4D;margin-bottom:.7rem;display:flex;align-items:center;gap:.4rem;padding-bottom:.5rem;border-bottom:1px solid #EEF4FB}
+.cbox-h i{color:#1A8ED8;font-size:.72rem}
+/* Table */
+.tbl{overflow-x:auto}
+.tbl table{width:100%;border-collapse:collapse;font-size:.8rem}
+.tbl th{background:#0C2D4D;color:#fff;padding:.5rem .7rem;font-size:.72rem;font-weight:600;text-align:left;white-space:nowrap}
+.tbl th:first-child{border-radius:6px 0 0 0}.tbl th:last-child{border-radius:0 6px 0 0}
+.tbl td{padding:.5rem .7rem;border-bottom:1px solid #EEF4FB;color:#374151}
+.tbl tr:hover td{background:rgba(26,142,216,.03)}
+.src-tag{padding:.12rem .4rem;border-radius:4px;font-size:.66rem;font-weight:700;font-family:'Consolas',monospace}
+.txn-tag{padding:.12rem .4rem;border-radius:4px;font-size:.68rem;font-weight:600}
+/* Stats list */
+.stat-row{display:flex;justify-content:space-between;padding:.4rem 0;border-bottom:1px solid #EEF4FB;font-size:.8rem}
+.stat-row:last-child{border-bottom:none}
+.stat-row .sl{color:#7A8599}.stat-row .sv{font-weight:700;color:#0C2D4D}
+/* Responsive */
+@media(max-width:1100px){.kpi-row{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:900px){.row-2,.row-eq,.row-3{grid-template-columns:1fr}.kpi-row{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:600px){.kpi-row{grid-template-columns:1fr 1fr}.db{padding:1rem}}
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="page-content fade-in">
+<!-- Filters -->
+<form method="GET" action="/dashboard/" class="db-fbar">
+  <div style="display:flex;flex-direction:column;gap:.15rem"><label style="font-size:.65rem;font-weight:700;color:#7A8599;text-transform:uppercase;letter-spacing:.06em">Transaction</label>
+  <select name="txn" class="db-sel" onchange="this.form.submit()"><option value="all"{% if txn_f == 'all' %} selected{% endif %}>Toutes</option><option value="Vente"{% if txn_f == 'Vente' %} selected{% endif %}>Vente</option><option value="Location"{% if txn_f == 'Location' %} selected{% endif %}>Location</option></select></div>
+  <div style="display:flex;flex-direction:column;gap:.15rem"><label style="font-size:.65rem;font-weight:700;color:#7A8599;text-transform:uppercase;letter-spacing:.06em">Source</label>
+  <select name="src" class="db-sel" onchange="this.form.submit()"><option value="all"{% if src_f == 'all' %} selected{% endif %}>Toutes</option>{% for s in sources_list %}<option value="{{ s }}"{% if src_f == s %} selected{% endif %}>{{ s|title }}</option>{% endfor %}</select></div>
+  <div style="display:flex;flex-direction:column;gap:.15rem"><label style="font-size:.65rem;font-weight:700;color:#7A8599;text-transform:uppercase;letter-spacing:.06em">Type</label>
+  <select name="type" class="db-sel" onchange="this.form.submit()"><option value="all"{% if type_f == 'all' %} selected{% endif %}>Tous</option>{% for t in types_list %}<option value="{{ t }}"{% if type_f == t %} selected{% endif %}>{{ t }}</option>{% endfor %}</select></div>
+  <div style="display:flex;flex-direction:column;gap:.15rem"><label style="font-size:.65rem;font-weight:700;color:#7A8599;text-transform:uppercase;letter-spacing:.06em">Ville</label>
+  <select name="city" class="db-sel" onchange="this.form.submit()"><option value="">Toutes</option>{% for c in cities_list %}<option value="{{ c }}"{% if city_f == c %} selected{% endif %}>{{ c }}</option>{% endfor %}</select></div>
+  <div class="db-badge"><i class="fas fa-database"></i><strong>{{ total }}</strong> annonces &middot; <strong>{{ nv }}</strong> ventes &middot; <strong>{{ nl }}</strong> locations</div>
+</form>
 
-  <!-- Filtres -->
-  <form method="GET" action="/dashboard/" class="filter-bar">
-    <div class="filter-group">
-      <label>Transaction</label>
-      <select name="txn" class="form-select" onchange="this.form.submit()">
-        <option value="all"      {% if txn_filter == 'all' %}selected{% endif %}>Toutes</option>
-        <option value="Vente"    {% if txn_filter == 'Vente' %}selected{% endif %}>Vente</option>
-        <option value="Location" {% if txn_filter == 'Location' %}selected{% endif %}>Location</option>
-      </select>
-    </div>
-    <div class="filter-group">
-      <label>Source</label>
-      <select name="src" class="form-select" onchange="this.form.submit()">
-        <option value="all" {% if src_filter == 'all' %}selected{% endif %}>Toutes les sources</option>
-        {% for s in sources %}
-        <option value="{{ s }}" {% if src_filter == s %}selected{% endif %}>{{ s|title }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div style="margin-left:auto;display:flex;align-items:flex-end">
-      <span style="font-size:.78rem;color:var(--muted)">
-        <i class="fas fa-database" style="color:var(--gold)"></i>
-        <strong>{{ total }}</strong> annonces au total
-        (<strong>{{ nv }}</strong> ventes · <strong>{{ nl }}</strong> locations)
-      </span>
-    </div>
-  </form>
-
+<div class="db">
   <!-- KPIs -->
-  <div class="kpi-grid">
+  <div class="kpi-row">
     {% for k in kpis %}
-    <div class="kpi-card fade-up" style="border-left-color:{{ k.color }};animation-delay:{{ forloop.counter0 }}00ms">
-      <div class="d-flex align-center gap-2 mb-2">
-        <div class="kpi-icon" style="background:{{ k.color }}15;color:{{ k.color }}">
-          <i class="{{ k.icon }}"></i>
-        </div>
-      </div>
-      <div class="kpi-val">{{ k.value }}</div>
-      <div class="kpi-lbl">{{ k.label }}</div>
-      {% if k.sub %}
-      <div class="text-xs text-muted mt-1">{{ k.sub }}</div>
-      {% endif %}
+    <div class="kpi fade-up" style="border-left-color:{{ k.color }};animation-delay:{{ forloop.counter0 }}50ms">
+      <div class="kpi-ic" style="background:{{ k.color }}12;color:{{ k.color }}"><i class="{{ k.icon }}"></i></div>
+      <div class="kpi-v">{{ k.value }}</div>
+      <div class="kpi-l">{{ k.label }}</div>
+      {% if k.sub %}<div class="kpi-s">{{ k.sub }}</div>{% endif %}
     </div>
     {% endfor %}
   </div>
 
-  <!-- Ligne 1 : Distribution + Donut -->
-  <div class="charts-row">
-    <div class="chart-wrap wide">
-      <div class="chart-card">
-        <div class="chart-header">
-          <i class="fas fa-chart-bar"></i> Distribution des prix — Vente
-        </div>
-        <div id="fig-dist" style="height:260px"></div>
-      </div>
+  <!-- Sub-tabs -->
+  <div class="db-tabs">
+    <div class="db-tab active" onclick="showTab('overview',this)"><i class="fas fa-th-large"></i>Vue d'ensemble</div>
+    <div class="db-tab" onclick="showTab('prices',this)"><i class="fas fa-chart-bar"></i>Analyse des prix</div>
+    <div class="db-tab" onclick="showTab('sources',this)"><i class="fas fa-layer-group"></i>Sources & Types</div>
+    <div class="db-tab" onclick="showTab('table',this)"><i class="fas fa-table"></i>Donnees</div>
+    <div class="db-tab" onclick="showTab('predict',this)"><i class="fas fa-magic"></i>Predictions</div>
+  </div>
+
+  <!-- TAB 1: Vue d'ensemble -->
+  <div id="tab-overview" class="tab-content active">
+    <div class="row-2">
+      <div class="cbox"><div class="cbox-h"><i class="fas fa-chart-area"></i>Distribution des prix (Vente)</div><div id="ch-dist" style="height:280px"></div></div>
+      <div class="cbox"><div class="cbox-h"><i class="fas fa-chart-pie"></i>Repartition par source</div><div id="ch-pie" style="height:280px"></div></div>
     </div>
-    <div class="chart-wrap">
-      <div class="chart-card">
-        <div class="chart-header">
-          <i class="fas fa-circle-half-stroke"></i> Répartition par source
-        </div>
-        <div id="fig-pie" style="height:260px"></div>
+    <div class="row-eq">
+      <div class="cbox"><div class="cbox-h"><i class="fas fa-map-pin"></i>Top quartiers — Prix median vente</div><div id="ch-cities" style="height:310px"></div></div>
+      <div class="cbox"><div class="cbox-h"><i class="fas fa-building"></i>Repartition par type de bien</div><div id="ch-types" style="height:310px"></div></div>
+    </div>
+    <div class="row-1">
+      <div class="cbox"><div class="cbox-h"><i class="fas fa-exchange-alt"></i>Vente vs Location par source</div><div id="ch-trend" style="height:240px"></div></div>
+    </div>
+  </div>
+
+  <!-- TAB 2: Analyse des prix -->
+  <div id="tab-prices" class="tab-content">
+    <div class="row-eq">
+      <div class="cbox"><div class="cbox-h"><i class="fas fa-box-open"></i>Distribution des prix par type</div><div id="ch-box" style="height:300px"></div></div>
+      <div class="cbox"><div class="cbox-h"><i class="fas fa-braille"></i>Prix vs Superficie</div><div id="ch-scatter" style="height:300px"></div></div>
+    </div>
+    <div class="row-3">
+      <div class="cbox"><div class="cbox-h"><i class="fas fa-bed"></i>Prix median par chambres</div><div id="ch-beds" style="height:270px"></div></div>
+      <div class="cbox"><div class="cbox-h"><i class="fas fa-database"></i>Prix median par source</div><div id="ch-srcprice" style="height:270px"></div></div>
+      <div class="cbox"><div class="cbox-h"><i class="fas fa-list-ol"></i>Statistiques descriptives</div>
+        <div>{% for label,val in stats_table %}<div class="stat-row"><span class="sl">{{ label }}</span><span class="sv">{{ val }}</span></div>{% endfor %}</div>
       </div>
     </div>
   </div>
 
-  <!-- Ligne 2 : Top quartiers + Types -->
-  <div class="charts-row">
-    <div class="chart-wrap">
-      <div class="chart-card">
-        <div class="chart-header">
-          <i class="fas fa-map-pin"></i> Top quartiers — Prix médian (FCFA)
-        </div>
-        <div id="fig-cities" style="height:290px"></div>
-      </div>
+  <!-- TAB 3: Sources & Types -->
+  <div id="tab-sources" class="tab-content">
+    <div class="row-eq">
+      <div class="cbox"><div class="cbox-h"><i class="fas fa-chart-pie"></i>Repartition par source</div><div id="ch-pie2" style="height:300px"></div></div>
+      <div class="cbox"><div class="cbox-h"><i class="fas fa-chart-bar"></i>Types de biens</div><div id="ch-types2" style="height:300px"></div></div>
     </div>
-    <div class="chart-wrap">
-      <div class="chart-card">
-        <div class="chart-header">
-          <i class="fas fa-home"></i> Répartition par type de bien
+    <div class="row-1">
+      <div class="cbox"><div class="cbox-h"><i class="fas fa-balance-scale"></i>Comparaison prix median/moyen par source</div><div id="ch-srccomp" style="height:260px"></div></div>
+    </div>
+  </div>
+
+
+  <!-- TAB 5: Predictions -->
+  <div id="tab-predict" class="tab-content">
+    <div class="row-eq">
+      <div class="cbox" style="padding:1.5rem">
+        <div class="cbox-h" style="border-bottom:none;margin-bottom:1rem"><i class="fas fa-magic"></i>Estimer le prix d'un bien</div>
+        <p style="font-size:.82rem;color:#7A8599;margin-bottom:1.5rem">Renseignez les caracteristiques du bien pour obtenir une estimation basee sur nos donnees de marche.</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem">
+          <div><label style="font-size:.78rem;font-weight:600;color:#374151;display:block;margin-bottom:.3rem"><i class="fas fa-map-pin" style="color:#1A8ED8;margin-right:.3rem"></i>Quartier / Ville</label>
+          <select id="pred-city" style="width:100%;padding:.45rem .75rem;border:1.5px solid #D6E3F0;border-radius:8px;font-size:.82rem;font-family:Arial,Helvetica,sans-serif;outline:none;color:#0C2D4D"><option value="">-- Choisir --</option>{% for c in cities_list %}<option value="{{ c }}">{{ c }}</option>{% endfor %}</select></div>
+          <div><label style="font-size:.78rem;font-weight:600;color:#374151;display:block;margin-bottom:.3rem"><i class="fas fa-home" style="color:#1A8ED8;margin-right:.3rem"></i>Type de bien</label>
+          <select id="pred-type" style="width:100%;padding:.45rem .75rem;border:1.5px solid #D6E3F0;border-radius:8px;font-size:.82rem;font-family:Arial,Helvetica,sans-serif;outline:none;color:#0C2D4D"><option value="villa">Villa</option><option value="appartement" selected>Appartement</option><option value="maison">Maison</option><option value="terrain">Terrain</option><option value="studio">Studio</option><option value="duplex">Duplex</option><option value="chambre">Chambre</option><option value="immeuble">Immeuble</option></select></div>
+          <div><label style="font-size:.78rem;font-weight:600;color:#374151;display:block;margin-bottom:.3rem"><i class="fas fa-exchange-alt" style="color:#1A8ED8;margin-right:.3rem"></i>Transaction</label>
+          <select id="pred-txn" style="width:100%;padding:.45rem .75rem;border:1.5px solid #D6E3F0;border-radius:8px;font-size:.82rem;font-family:Arial,Helvetica,sans-serif;outline:none;color:#0C2D4D"><option value="vente">Vente</option><option value="location">Location</option></select></div>
+          <div><label style="font-size:.78rem;font-weight:600;color:#374151;display:block;margin-bottom:.3rem"><i class="fas fa-expand" style="color:#1A8ED8;margin-right:.3rem"></i>Superficie (m2)</label>
+          <input type="number" id="pred-surface" placeholder="Ex: 120" min="0" max="10000" style="width:100%;padding:.45rem .75rem;border:1.5px solid #D6E3F0;border-radius:8px;font-size:.82rem;font-family:Arial,Helvetica,sans-serif;outline:none;color:#0C2D4D"></div>
+          <div><label style="font-size:.78rem;font-weight:600;color:#374151;display:block;margin-bottom:.3rem"><i class="fas fa-bed" style="color:#1A8ED8;margin-right:.3rem"></i>Chambres</label>
+          <input type="number" id="pred-beds" placeholder="Ex: 3" min="0" max="20" style="width:100%;padding:.45rem .75rem;border:1.5px solid #D6E3F0;border-radius:8px;font-size:.82rem;font-family:Arial,Helvetica,sans-serif;outline:none;color:#0C2D4D"></div>
+          <div style="display:flex;align-items:flex-end">
+          <button onclick="doPrediction()" style="width:100%;padding:.55rem 1rem;background:linear-gradient(135deg,#1A8ED8,#3BA7E2);color:#fff;border:none;border-radius:8px;font-size:.85rem;font-weight:700;cursor:pointer;font-family:Arial,Helvetica,sans-serif;display:flex;align-items:center;justify-content:center;gap:.4rem;transition:all .2s;box-shadow:0 2px 8px rgba(26,142,216,.3)"><i class="fas fa-calculator"></i>Estimer</button></div>
         </div>
-        <div id="fig-types" style="height:290px"></div>
+        <div id="pred-result" style="margin-top:1.5rem;display:none">
+          <div style="background:linear-gradient(135deg,#0C2D4D,#143D68);border-radius:12px;padding:1.5rem;color:#fff;position:relative;overflow:hidden">
+            <div style="position:absolute;top:-30px;right:-30px;width:120px;height:120px;border-radius:50%;background:radial-gradient(circle,rgba(26,142,216,.15),transparent 70%)"></div>
+            <div style="position:relative;z-index:2">
+              <div style="font-size:.7rem;color:#5BBCE8;text-transform:uppercase;letter-spacing:.1em;font-family:'Consolas',monospace;margin-bottom:.5rem"><i class="fas fa-chart-line" style="margin-right:.3rem"></i>Estimation ImmoPredict</div>
+              <div id="pred-price" style="font-family:'Times New Roman',Times,serif;font-size:2.2rem;font-weight:700;color:#5BBCE8;line-height:1;margin-bottom:.3rem"></div>
+              <div id="pred-range" style="font-size:.78rem;color:rgba(255,255,255,.45);margin-bottom:1rem"></div>
+              <div style="height:1px;background:rgba(255,255,255,.1);margin-bottom:1rem"></div>
+              <div id="pred-details" style="font-size:.78rem;color:rgba(255,255,255,.5)"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="cbox" style="padding:1.5rem">
+        <div class="cbox-h" style="border-bottom:none;margin-bottom:.8rem"><i class="fas fa-info-circle"></i>Guide des prix - Dakar</div>
+        <div style="margin-bottom:1.5rem">
+          <img src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&q=80" alt="Immobilier Senegal" style="width:100%;height:160px;object-fit:cover;border-radius:10px;margin-bottom:1rem">
+        </div>
+        <div style="font-size:.8rem">
+          <div style="display:flex;justify-content:space-between;padding:.4rem 0;border-bottom:1px solid #EEF4FB"><span style="color:#7A8599">Villa Almadies</span><span style="font-weight:700;color:#0C2D4D">150-500M FCFA</span></div>
+          <div style="display:flex;justify-content:space-between;padding:.4rem 0;border-bottom:1px solid #EEF4FB"><span style="color:#7A8599">Appt Mermoz</span><span style="font-weight:700;color:#0C2D4D">40-120M FCFA</span></div>
+          <div style="display:flex;justify-content:space-between;padding:.4rem 0;border-bottom:1px solid #EEF4FB"><span style="color:#7A8599">Studio Plateau</span><span style="font-weight:700;color:#0C2D4D">10-35M FCFA</span></div>
+          <div style="display:flex;justify-content:space-between;padding:.4rem 0;border-bottom:1px solid #EEF4FB"><span style="color:#7A8599">Terrain Pikine</span><span style="font-weight:700;color:#0C2D4D">3-25M FCFA</span></div>
+          <div style="display:flex;justify-content:space-between;padding:.4rem 0;border-bottom:1px solid #EEF4FB"><span style="color:#7A8599">Chambre (loyer)</span><span style="font-weight:700;color:#0C2D4D">30-150K/mois</span></div>
+          <div style="display:flex;justify-content:space-between;padding:.4rem 0;border-bottom:1px solid #EEF4FB"><span style="color:#7A8599">Appt (loyer)</span><span style="font-weight:700;color:#0C2D4D">150K-1.5M/mois</span></div>
+          <div style="display:flex;justify-content:space-between;padding:.4rem 0"><span style="color:#7A8599">Villa (loyer)</span><span style="font-weight:700;color:#0C2D4D">500K-5M/mois</span></div>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- Ligne 3 : Évolution temporelle -->
-  <div class="charts-row mb-3">
-    <div class="chart-wrap" style="flex:1">
-      <div class="chart-card">
-        <div class="chart-header">
-          <i class="fas fa-timeline"></i> Évolution temporelle des annonces et prix
-        </div>
-        <div id="fig-trend" style="height:240px"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Tableau annonces -->
-  <div class="chart-card mb-3">
-    <div class="chart-header">
-      <i class="fas fa-list"></i> Annonces — prix les plus élevés
-    </div>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            {% for h in headers %}
-            <th>{{ h }}</th>
+  <!-- TAB 4: Donnees -->
+  <div id="tab-table" class="tab-content">
+    <div class="cbox">
+      <div class="cbox-h"><i class="fas fa-list"></i>Top annonces par prix</div>
+      <div class="tbl">
+        <table>
+          <thead><tr><th>Bien</th><th>Prix</th><th>Ville</th><th>Type</th><th>Source</th><th>Transaction</th></tr></thead>
+          <tbody>
+            {% for r in recent_rows %}
+            <tr>
+              <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500">{{ r.title }}</td>
+              <td style="font-weight:700;color:#1A8ED8;white-space:nowrap;font-family:'Times New Roman',Times,serif">{{ r.price_fmt }}</td>
+              <td>{{ r.city }}</td>
+              <td>{{ r.type }}</td>
+              <td><span class="src-tag" style="background:{{ r.src_color }}15;color:{{ r.src_color }}">{{ r.source }}</span></td>
+              <td><span class="txn-tag" style="background:{{ r.txn_color }}12;color:{{ r.txn_color }}">{{ r.txn }}</span></td>
+            </tr>
             {% endfor %}
-          </tr>
-        </thead>
-        <tbody>
-          {% for r in recent %}
-          <tr>
-            <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
-              {{ r.title_sh }}
-            </td>
-            <td style="font-weight:700;color:var(--gold);white-space:nowrap">{{ r.price_fmt }}</td>
-            <td>{{ r.city }}</td>
-            <td>{{ r.prop_type }}</td>
-            <td>
-              <span style="background:{{ r.src_color }}18;color:{{ r.src_color }};padding:.1rem .4rem;border-radius:4px;font-size:.68rem;font-weight:600;font-family:var(--mono)">
-                {{ r.source }}
-              </span>
-            </td>
-            <td>
-              <span style="background:{{ r.txn_color }}12;color:{{ r.txn_color }};padding:.1rem .4rem;border-radius:4px;font-size:.7rem;font-weight:600">
-                {{ r.transaction }}
-              </span>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
-
 </div>
 {% endblock %}
 
 {% block extra_js %}
-<!-- Données Plotly encodées en JSON -->
-<script id="d-fig-dist"   type="application/json">{{ fig_dist|safe }}</script>
-<script id="d-fig-pie"    type="application/json">{{ fig_pie|safe }}</script>
-<script id="d-fig-cities" type="application/json">{{ fig_cities|safe }}</script>
-<script id="d-fig-types"  type="application/json">{{ fig_types|safe }}</script>
-<script id="d-fig-trend"  type="application/json">{{ fig_trend|safe }}</script>
-
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-  var CFG = {responsive: true, displayModeBar: false, locale: 'fr'};
+// === Tab navigation ===
+function showTab(id, el){
+  document.querySelectorAll('.tab-content').forEach(function(t){t.classList.remove('active')});
+  document.querySelectorAll('.db-tab').forEach(function(t){t.classList.remove('active')});
+  document.getElementById('tab-'+id).classList.add('active');
+  el.classList.add('active');
+  // Trigger resize for Plotly charts in newly visible tab
+  setTimeout(function(){window.dispatchEvent(new Event('resize'))},100);
+}
 
-  function renderPlot(divId, dataId) {
-    var el = document.getElementById(divId);
-    var src = document.getElementById(dataId);
-    if (!el || !src) return;
-    try {
-      var fig = JSON.parse(src.textContent);
-      var layout = fig.layout || {};
-      // Appliquer styles sans écraser les données
-      layout.paper_bgcolor = 'rgba(0,0,0,0)';
-      layout.plot_bgcolor  = 'rgba(0,0,0,0)';
-      layout.font = {family: 'Inter, sans-serif', size: 11, color: '#374151'};
-      if (!layout.margin) layout.margin = {l:50, r:30, t:20, b:50};
-      if (layout.legend === undefined) layout.legend = {orientation: 'h', y: -0.2, bgcolor: 'rgba(0,0,0,0)'};
-      if (fig.data && fig.data.length > 0) {
-        Plotly.newPlot(divId, fig.data, layout, CFG);
-      } else {
-        el.innerHTML = '<div style="height:100%;display:flex;align-items:center;justify-content:center;color:#9CA3AF;font-size:.82rem"><i class="fas fa-chart-bar" style="margin-right:.4rem;color:#DDE1EE"></i>Données insuffisantes</div>';
-      }
-    } catch(e) {
-      console.error('Plotly error on ' + divId + ':', e);
-      el.innerHTML = '<div style="height:100%;display:flex;align-items:center;justify-content:center;color:#9CA3AF;font-size:.82rem">Erreur de rendu</div>';
+// === Chart config ===
+var PC = {responsive:true, displayModeBar:false, locale:'fr'};
+var LY = {paper_bgcolor:'rgba(0,0,0,0)', plot_bgcolor:'rgba(0,0,0,0)',
+           font:{family:'Arial,Helvetica,sans-serif',size:11,color:'#374151'},
+           margin:{l:45,r:15,t:15,b:45}};
+var PAL = ['#1A8ED8','#2563EB','#1B7A50','#C0392B','#7C3AED','#0891B2','#F59E0B','#16A085'];
+
+function noData(id){
+  document.getElementById(id).innerHTML='<div style="height:100%;display:flex;align-items:center;justify-content:center;color:#9CA3AF;font-size:.82rem;flex-direction:column;gap:.3rem"><i class="fas fa-info-circle" style="color:#D6E3F0;font-size:1.2rem"></i><span>Pas assez de donnees</span></div>';
+}
+
+// === RAW DATA from Django ===
+var distPrices = {{ j_dist|safe }};
+var pieLabels = {{ j_pie_labels|safe }};
+var pieValues = {{ j_pie_values|safe }};
+var pieColors = {{ j_pie_colors|safe }};
+var citiesNames = {{ j_cities_names|safe }};
+var citiesMedians = {{ j_cities_medians|safe }};
+var citiesCounts = {{ j_cities_counts|safe }};
+var typesNames = {{ j_types_names|safe }};
+var typesValues = {{ j_types_values|safe }};
+var trendLabels = {{ j_trend_labels|safe }};
+var trendVente = {{ j_trend_vente|safe }};
+var trendLoc = {{ j_trend_loc|safe }};
+var boxData = {{ j_box|safe }};
+var scatterX = {{ j_scatter_x|safe }};
+var scatterY = {{ j_scatter_y|safe }};
+var scatterT = {{ j_scatter_t|safe }};
+var bedLabels = {{ j_bed_labels|safe }};
+var bedMedians = {{ j_bed_medians|safe }};
+var srcLabels = {{ j_src_labels|safe }};
+var srcMedians = {{ j_src_medians|safe }};
+var srcMeans = {{ j_src_means|safe }};
+
+// === BUILD CHARTS ===
+document.addEventListener('DOMContentLoaded', function(){
+
+  // 1. Distribution histogram
+  if(distPrices.length > 5){
+    Plotly.newPlot('ch-dist', [{
+      x: distPrices, type:'histogram', nbinsx:40,
+      marker:{color:'#1A8ED8', line:{width:0}},
+      hovertemplate:'%{x:.0f}M FCFA<br>%{y} annonces<extra></extra>'
+    }], Object.assign({}, LY, {xaxis:{title:'Prix (M FCFA)',gridcolor:'#EEF4FB'},yaxis:{title:'Annonces',gridcolor:'#EEF4FB'}}), PC);
+  } else { noData('ch-dist'); }
+
+  // 2. Source pie
+  if(pieValues.length > 0){
+    Plotly.newPlot('ch-pie', [{
+      labels:pieLabels, values:pieValues, type:'pie', hole:.48,
+      marker:{colors:pieColors},
+      textinfo:'label+percent',
+      hovertemplate:'%{label}<br><b>%{value:,}</b> annonces (%{percent})<extra></extra>'
+    }], Object.assign({}, LY, {margin:{l:10,r:10,t:15,b:10},showlegend:true,legend:{orientation:'h',y:-.1,font:{size:10}}}), PC);
+  } else { noData('ch-pie'); }
+
+  // 3. Top cities horizontal bar
+  if(citiesNames.length > 0){
+    Plotly.newPlot('ch-cities', [{
+      x:citiesMedians, y:citiesNames, type:'bar', orientation:'h',
+      marker:{color:citiesMedians.map(function(v,i){return 'rgba(26,142,216,'+(0.4+0.6*i/citiesMedians.length)+')'})},
+      text:citiesMedians.map(function(v){return v+'M'}), textposition:'outside',
+      customdata:citiesCounts,
+      hovertemplate:'%{y}<br><b>%{x:.1f}M FCFA</b> (%{customdata} ann.)<extra></extra>'
+    }], Object.assign({}, LY, {margin:{l:5,r:60,t:10,b:30},xaxis:{title:'Prix median (M FCFA)',gridcolor:'#EEF4FB'}}), PC);
+  } else { noData('ch-cities'); }
+
+  // 4. Types bar
+  if(typesNames.length > 0){
+    Plotly.newPlot('ch-types', [{
+      x:typesNames, y:typesValues, type:'bar',
+      marker:{color:PAL.slice(0,typesNames.length)},
+      text:typesValues, textposition:'outside',
+      hovertemplate:'%{x}<br><b>%{y:,}</b> annonces<extra></extra>'
+    }], Object.assign({}, LY, {xaxis:{tickangle:-20},yaxis:{title:'Annonces',gridcolor:'#EEF4FB'}}), PC);
+  } else { noData('ch-types'); }
+
+  // 5. Trend: vente vs location
+  if(trendLabels.length > 0){
+    Plotly.newPlot('ch-trend', [
+      {name:'Vente', x:trendLabels, y:trendVente, type:'bar', marker:{color:'#1A8ED8'}, text:trendVente, textposition:'outside'},
+      {name:'Location', x:trendLabels, y:trendLoc, type:'bar', marker:{color:'#5BBCE8'}, text:trendLoc, textposition:'outside'}
+    ], Object.assign({}, LY, {barmode:'group',legend:{orientation:'h',y:1.1,font:{size:11}},yaxis:{title:'Annonces',gridcolor:'#EEF4FB'}}), PC);
+  } else { noData('ch-trend'); }
+
+  // 6. Box plot by type
+  var boxTraces = [];
+  var bi = 0;
+  for(var t in boxData){
+    if(boxData[t].length >= 3){
+      boxTraces.push({y:boxData[t], name:t, type:'box', boxmean:true, boxpoints:false, marker:{color:PAL[bi%PAL.length]}});
+      bi++;
     }
   }
+  if(boxTraces.length > 0){
+    Plotly.newPlot('ch-box', boxTraces, Object.assign({}, LY, {showlegend:false,yaxis:{title:'Prix (M FCFA)',gridcolor:'#EEF4FB'}}), PC);
+  } else { noData('ch-box'); }
 
-  renderPlot('fig-dist',   'd-fig-dist');
-  renderPlot('fig-pie',    'd-fig-pie');
-  renderPlot('fig-cities', 'd-fig-cities');
-  renderPlot('fig-types',  'd-fig-types');
-  renderPlot('fig-trend',  'd-fig-trend');
+  // 7. Scatter: prix vs surface
+  if(scatterX.length > 5){
+    // Group by type for colors
+    var scTypes = [...new Set(scatterT)];
+    var scTraces = scTypes.slice(0,6).map(function(tp,i){
+      var xi=[],yi=[];
+      scatterX.forEach(function(x,j){ if(scatterT[j]===tp){xi.push(x);yi.push(scatterY[j])} });
+      return {x:xi, y:yi, mode:'markers', name:tp, type:'scatter',
+              marker:{size:4, opacity:.5, color:PAL[i%PAL.length]},
+              hovertemplate:tp+'<br>Surface: %{x}m2<br>Prix: %{y:.1f}M FCFA<extra></extra>'};
+    });
+    Plotly.newPlot('ch-scatter', scTraces, Object.assign({}, LY, {
+      xaxis:{title:'Superficie (m2)',gridcolor:'#EEF4FB'},
+      yaxis:{title:'Prix (M FCFA)',gridcolor:'#EEF4FB'},
+      legend:{font:{size:10}}
+    }), PC);
+  } else { noData('ch-scatter'); }
+
+  // 8. Bedrooms bar
+  if(bedLabels.length > 0){
+    Plotly.newPlot('ch-beds', [{
+      x:bedLabels, y:bedMedians, type:'bar',
+      marker:{color:PAL.slice(0,bedLabels.length)},
+      text:bedMedians.map(function(v){return v+'M'}), textposition:'outside'
+    }], Object.assign({}, LY, {yaxis:{title:'Prix median (M FCFA)',gridcolor:'#EEF4FB'}}), PC);
+  } else { noData('ch-beds'); }
+
+  // 9. Source median/mean
+  if(srcLabels.length > 0){
+    Plotly.newPlot('ch-srcprice', [
+      {name:'Mediane', x:srcLabels, y:srcMedians, type:'bar', marker:{color:'#1A8ED8'}, text:srcMedians.map(function(v){return v+'M'}), textposition:'outside'},
+      {name:'Moyenne', x:srcLabels, y:srcMeans, type:'bar', marker:{color:'#5BBCE8'}, text:srcMeans.map(function(v){return v+'M'}), textposition:'outside'}
+    ], Object.assign({}, LY, {barmode:'group',legend:{orientation:'h',y:1.1},yaxis:{title:'Prix (M FCFA)',gridcolor:'#EEF4FB'}}), PC);
+  } else { noData('ch-srcprice'); }
+
+  // 10. Duplicate charts for Sources tab
+  if(pieValues.length > 0){
+    Plotly.newPlot('ch-pie2', [{labels:pieLabels,values:pieValues,type:'pie',hole:.48,marker:{colors:pieColors},textinfo:'label+percent'}],
+      Object.assign({},LY,{margin:{l:10,r:10,t:15,b:10},showlegend:true,legend:{orientation:'h',y:-.1}}), PC);
+  } else { noData('ch-pie2'); }
+  if(typesNames.length > 0){
+    Plotly.newPlot('ch-types2', [{x:typesNames,y:typesValues,type:'bar',marker:{color:PAL.slice(0,typesNames.length)},text:typesValues,textposition:'outside'}],
+      Object.assign({},LY,{xaxis:{tickangle:-20},yaxis:{title:'Annonces',gridcolor:'#EEF4FB'}}), PC);
+  } else { noData('ch-types2'); }
+  if(srcLabels.length > 0){
+    Plotly.newPlot('ch-srccomp', [
+      {name:'Mediane',x:srcLabels,y:srcMedians,type:'bar',marker:{color:'#1A8ED8'},text:srcMedians.map(function(v){return v+'M'}),textposition:'outside'},
+      {name:'Moyenne',x:srcLabels,y:srcMeans,type:'bar',marker:{color:'#5BBCE8'},text:srcMeans.map(function(v){return v+'M'}),textposition:'outside'}
+    ], Object.assign({},LY,{barmode:'group',legend:{orientation:'h',y:1.1},yaxis:{title:'Prix (M FCFA)',gridcolor:'#EEF4FB'}}), PC);
+  } else { noData('ch-srccomp'); }
 });
+
+// === Prediction ===
+async function doPrediction(){
+  var city = document.getElementById('pred-city').value;
+  var type = document.getElementById('pred-type').value;
+  var txn = document.getElementById('pred-txn').value;
+  var surface = document.getElementById('pred-surface').value;
+  var beds = document.getElementById('pred-beds').value;
+  var result = document.getElementById('pred-result');
+  try{
+    var csrf='';var ce=document.querySelector('[name=csrfmiddlewaretoken]');if(ce)csrf=ce.value;
+    var r = await fetch('/api/predict/', {
+      method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':csrf},
+      body:JSON.stringify({city:city,type:type,transaction:txn,surface:surface,bedrooms:beds}),
+      credentials:'same-origin'
+    });
+    var d = await r.json();
+    if(d.error){alert(d.error);return}
+    document.getElementById('pred-price').textContent = d.price_fmt;
+    document.getElementById('pred-range').textContent = 'Fourchette : ' + d.price_min + ' - ' + d.price_max;
+    var details = '';
+    if(city) details += 'Localite : ' + city + '<br>';
+    details += 'Type : ' + type + ' | Transaction : ' + txn + '<br>';
+    if(surface) details += 'Surface : ' + surface + ' m2 | ';
+    if(beds) details += 'Chambres : ' + beds;
+    details += '<br>Modele : ' + d.model + ' | Confiance : ' + d.confidence;
+    document.getElementById('pred-details').innerHTML = details;
+    result.style.display = 'block';
+    result.scrollIntoView({behavior:'smooth',block:'nearest'});
+  }catch(e){
+    alert('Erreur: ' + e.message);
+  }
+}
 </script>
 {% endblock %}
